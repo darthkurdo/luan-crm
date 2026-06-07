@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import Sidebar from './components/Sidebar'
 import Topbar from './components/Topbar'
 import Dashboard from './components/Dashboard'
@@ -20,11 +20,6 @@ function clientFromEmail(email) {
   return email.split('@')[1] || 'Unknown'
 }
 
-function priorityFromImportance(imp) {
-  if (imp === 'high') return 'high'
-  return 'medium'
-}
-
 export default function App() {
   const [view, setView] = useState('dashboard')
   const [tickets, setTickets] = useState([])
@@ -44,23 +39,22 @@ export default function App() {
       const data = await res.json()
       if (data.error) throw new Error(data.error)
 
-      const existingEmailIds = tickets.map(t => t.emailId).filter(Boolean)
-      const newEmails = data.emails.filter(e => !existingEmailIds.includes(e.emailId))
+      const existingConvIds = tickets.map(t => t.conversationId).filter(Boolean)
+      const newThreads = (data.threads || []).filter(t => !existingConvIds.includes(t.conversationId))
 
-      if (newEmails.length === 0) {
+      if (newThreads.length === 0) {
         setSyncMsg({ type: 'info', text: 'No new emails from your monitored domains.' })
       } else {
-        const newTickets = newEmails.map(e => ({
+        const newTickets = newThreads.map(thread => ({
           id: genId(),
-          emailId: e.emailId,
-          client: clientFromEmail(e.sender),
-          email: e.sender,
-          senderName: e.senderName,
-          subject: e.subject,
-          desc: e.preview,
-          priority: priorityFromImportance(e.importance),
+          conversationId: thread.conversationId,
+          client: thread.client,
+          email: thread.senderEmail,
+          subject: thread.subject,
+          priority: thread.importance === 'high' ? 'high' : 'medium',
           status: 'open',
-          created: new Date(e.receivedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          created: new Date(thread.latestDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          messages: thread.messages,
           comments: [],
           fromEmail: true,
           aiSolution: null,
@@ -72,7 +66,7 @@ export default function App() {
       setSyncMsg({ type: 'error', text: `Sync failed: ${err.message}` })
     }
     setSyncing(false)
-    setTimeout(() => setSyncMsg(null), 5000)
+    setTimeout(() => setSyncMsg(null), 6000)
   }
 
   function addTicket(ticket) {
@@ -96,13 +90,7 @@ export default function App() {
     <div className="app">
       <Sidebar view={view} setView={setView} tickets={tickets} />
       <div className="main">
-        <Topbar
-          view={view}
-          syncing={syncing}
-          syncMsg={syncMsg}
-          onSync={syncInbox}
-          onNewTicket={() => setShowModal(true)}
-        />
+        <Topbar view={view} syncing={syncing} syncMsg={syncMsg} onSync={syncInbox} onNewTicket={() => setShowModal(true)} />
         <div className="content">
           <ViewComponent
             tickets={tickets}
@@ -114,7 +102,6 @@ export default function App() {
           />
         </div>
       </div>
-
       {selectedTicket && (
         <TicketPanel
           ticket={selectedTicket}
@@ -123,7 +110,6 @@ export default function App() {
           onComment={(comment) => addComment(selectedId, comment)}
         />
       )}
-
       {showModal && (
         <NewTicketModal
           onClose={() => setShowModal(false)}
