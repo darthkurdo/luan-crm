@@ -1,5 +1,5 @@
 // api/emails.js — Vercel Serverless Function
-// Fetches full conversation threads from M365 for pescatlantic.com and vonoil.com
+// Fetches emails from M365, groups by conversationId into threads
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -35,9 +35,9 @@ export default async function handler(req, res) {
     const token = tokenData.access_token;
     const headers = { Authorization: `Bearer ${token}` };
 
-    // Step 2: Fetch inbox emails from monitored domains
+    // Step 2: Fetch last 100 inbox messages
     const inboxRes = await fetch(
-      `https://graph.microsoft.com/v1.0/users/${MAILBOX}/messages?$top=50&$orderby=receivedDateTime desc&$select=id,subject,from,receivedDateTime,bodyPreview,body,importance,isRead,conversationId,toRecipients`,
+      `https://graph.microsoft.com/v1.0/users/${MAILBOX}/messages?$top=100&$orderby=receivedDateTime desc&$select=id,subject,from,toRecipients,receivedDateTime,bodyPreview,body,importance,isRead,conversationId`,
       { headers }
     );
     const inboxData = await inboxRes.json();
@@ -45,64 +45,78 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to fetch inbox', detail: inboxData.error?.message });
     }
 
-    // Step 3: Filter only emails from monitored domains
-    const fromDomains = inboxData.value.filter(email => {
-      const sender = (email.from?.emailAddress?.address || '').toLowerCase();
-      return DOMAINS.some(d => sender.includes(d));
+    // Step 3: Fetch last 100 sent messages
+    const sentRes = await fetch(
+      `https://graph.microsoft.com/v1.0/users/${MAILBOX}/mailFolders/SentItems/messages?$top=100&$orderby=receivedDateTime desc&$select=id,subject,from,toRecipients,receivedDateTime,bodyPreview,body,importance,isRead,conversationId`,
+      { headers }
+    );
+    const sentData = await sentRes.json();
+    const sentMessages = (sentData.value || []).map(m => ({ ...m, _sent: true }));
+
+    // Step 4: Combine all messages
+    const allMessages = [...inboxData.value, ...sentMessages];
+
+    // Step 5: Find conversation IDs that have at least one message from monitored domains
+    const domainConvIds = new Set();
+    inboxData.value.forEach(m => {
+      const sender = (m.from?.emailAddress?.address || '').toLowerCase();
+      if (DOMAINS.some(d => sender.includes(d)) && m.conversationId) {
+        domainConvIds.add(m.conversationId);
+      }
     });
 
-    if (fromDomains.length === 0) {
+    if (domainConvIds.size === 0) {
       return res.status(200).json({ threads: [] });
     }
 
-    // Step 4: Get unique conversation IDs
-    const conversationIds = [...new Set(fromDomains.map(e => e.conversationId).filter(Boolean))];
+    // Step 6: Group all messages by conversationId, only for monitored convos
+    const convMap = {};
+    allMessages.forEach(m => {
+      if (!m.conversationId || !domainConvIds.has(m.conversationId)) return;
+      if (!convMap[m.conversationId]) convMap[m.conversationId] = [];
+      convMap[m.conversationId].push(m);
+    });
 
-    // Step 5: For each conversation, fetch ALL messages in that thread (inbox + sent)
-    const threads = await Promise.all(conversationIds.map(async (convId) => {
-      // Get all messages in this conversation from inbox
-      const convRes = await fetch(
-        `https://graph.microsoft.com/v1.0/users/${MAILBOX}/messages?$filter=conversationId eq '${convId}'&$orderby=receivedDateTime asc&$select=id,subject,from,toRecipients,receivedDateTime,bodyPreview,body,importance,isRead,conversationId`,
-        { headers }
-      );
-      const convData = await convRes.json();
-      const inboxMessages = convData.value || [];
-
-      // Get sent messages in this conversation
-      const sentRes = await fetch(
-        `https://graph.microsoft.com/v1.0/users/${MAILBOX}/mailFolders/SentItems/messages?$filter=conversationId eq '${convId}'&$orderby=receivedDateTime asc&$select=id,subject,from,toRecipients,receivedDateTime,bodyPreview,body,importance,isRead,conversationId`,
-        { headers }
-      );
-      const sentData = await sentRes.json();
-      const sentMessages = (sentData.value || []).map(m => ({ ...m, _sent: true }));
-
-      // Merge and sort all messages by date
-      const allMessages = [...inboxMessages, ...sentMessages]
-        .sort((a, b) => new Date(a.receivedDateTime) - new Date(b.receivedDateTime));
-
-      // Remove duplicates by id
+    // Step 7: Build threads
+    const threads = Object.entries(convMap).map(([convId, msgs]) => {
+      // Remove duplicate IDs
       const seen = new Set();
-      const unique = allMessages.filter(m => {
+      const unique = msgs.filter(m => {
         if (seen.has(m.id)) return false;
         seen.add(m.id);
         return true;
       });
 
-      const firstFromDomain = fromDomains.find(e => e.conversationId === convId);
+      // Sort by date ascending
+      unique.sort((a, b) => new Date(a.receivedDateTime) - new Date(b.receivedDateTime));
+
+      // Find the first message from a monitored domain to identify client
+      const firstFromDomain = unique.find(m => {
+        const sender = (m.from?.emailAddress?.address || '').toLowerCase();
+        return DOMAINS.some(d => sender.includes(d));
+      });
+
       const senderEmail = firstFromDomain?.from?.emailAddress?.address || '';
-      const client = DOMAINS[0] && senderEmail.includes('pescatlantic') ? 'Pescatlantic' :
-                     senderEmail.includes('vonoil') ? 'Vonoil' : senderEmail.split('@')[1] || 'Unknown';
+      const client = senderEmail.toLowerCase().includes('pescatlantic') ? 'Pescatlantic' :
+                     senderEmail.toLowerCase().includes('vonoil') ? 'Vonoil' :
+                     senderEmail.split('@')[1] || 'Unknown';
+
+      const latestMsg = unique[unique.length - 1];
 
       return {
         conversationId: convId,
-        subject: firstFromDomain?.subject || '(no subject)',
+        subject: unique[0]?.subject || '(no subject)',
         client,
         senderEmail,
         importance: firstFromDomain?.importance || 'normal',
-        latestDate: unique[unique.length - 1]?.receivedDateTime || firstFromDomain?.receivedDateTime,
+        latestDate: latestMsg?.receivedDateTime,
         messageCount: unique.length,
         messages: unique.map(m => {
-          const isMine = m._sent || (m.from?.emailAddress?.address || '').toLowerCase().includes('luantechnology');
+          const fromAddr = (m.from?.emailAddress?.address || '').toLowerCase();
+          const isMine = m._sent === true || fromAddr.includes('luantechnology');
+          // Strip HTML for display
+          const rawBody = m.body?.content || m.bodyPreview || '';
+          const isHtml = m.body?.contentType === 'html';
           return {
             id: m.id,
             from: m.from?.emailAddress?.address || '',
@@ -110,13 +124,13 @@ export default async function handler(req, res) {
             to: (m.toRecipients || []).map(r => r.emailAddress?.address).join(', '),
             date: m.receivedDateTime,
             preview: m.bodyPreview || '',
-            body: m.body?.content || m.bodyPreview || '',
-            isHtml: m.body?.contentType === 'html',
+            body: rawBody,
+            isHtml,
             isMine,
           };
         }),
       };
-    }));
+    });
 
     // Sort threads by latest message date descending
     threads.sort((a, b) => new Date(b.latestDate) - new Date(a.latestDate));
