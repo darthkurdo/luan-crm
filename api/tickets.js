@@ -1,7 +1,7 @@
-// api/tickets.js — reads tickets from Upstash KV
+// api/tickets.js — reads/writes tickets from Upstash KV
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, OPTIONS')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, POST, OPTIONS')
   res.setHeader('Content-Type', 'application/json')
   if (req.method === 'OPTIONS') return res.status(200).end()
 
@@ -12,40 +12,47 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Missing KV environment variables' })
   }
 
-  // GET — return all tickets
-  if (req.method === 'GET' && !req.url.includes('/api/tickets/')) {
-    const kvRes = await fetch(`${KV_URL}/get/luan_crm_db`, {
-      headers: { Authorization: `Bearer ${KV_TOKEN}` }
-    })
+  const headers = { Authorization: `Bearer ${KV_TOKEN}` }
+
+  async function getDb() {
+    const kvRes = await fetch(`${KV_URL}/get/luan_crm_db`, { headers })
     const kvData = await kvRes.json()
-    if (!kvData.result) return res.status(200).json({ tickets: [], lastSync: null })
-    const db = JSON.parse(kvData.result)
+    if (!kvData.result) return { tickets: [], lastSync: null }
+    // Handle double-serialized JSON
+    const raw = kvData.result
+    try {
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+      // If still a string (double serialized), parse again
+      if (typeof parsed === 'string') return JSON.parse(parsed)
+      return parsed
+    } catch { return { tickets: [], lastSync: null } }
+  }
+
+  async function setDb(db) {
+    await fetch(`${KV_URL}/set/luan_crm_db`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(JSON.stringify(db)),
+    })
+  }
+
+  // GET /api/tickets — return all tickets
+  if (req.method === 'GET') {
+    const db = await getDb()
     return res.status(200).json(db)
   }
 
   // PUT /api/tickets/:id — update a ticket
   if (req.method === 'PUT') {
     const id = req.url.split('/').pop()
-    const changes = req.body || {}
-
-    const kvRes = await fetch(`${KV_URL}/get/luan_crm_db`, {
-      headers: { Authorization: `Bearer ${KV_TOKEN}` }
-    })
-    const kvData = await kvRes.json()
-    if (!kvData.result) return res.status(404).json({ error: 'DB not found' })
-
-    const db = JSON.parse(kvData.result)
+    let body = ''
+    await new Promise(resolve => { req.on('data', c => body += c); req.on('end', resolve) })
+    const changes = JSON.parse(body || '{}')
+    const db = await getDb()
     const idx = db.tickets.findIndex(t => t.id === id)
     if (idx < 0) return res.status(404).json({ error: 'Ticket not found' })
-
     db.tickets[idx] = { ...db.tickets[idx], ...changes, updatedAt: new Date().toISOString() }
-
-    await fetch(`${KV_URL}/set/luan_crm_db`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${KV_TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(JSON.stringify(db)),
-    })
-
+    await setDb(db)
     return res.status(200).json({ ok: true, ticket: db.tickets[idx] })
   }
 
