@@ -12,7 +12,6 @@ export default async function handler(req, res) {
   const KV_URL        = process.env.KV_REST_API_URL
   const KV_TOKEN      = process.env.KV_REST_API_TOKEN
 
-  // GET — return current invoice counter
   if (req.method === 'GET') {
     try {
       const r = await fetch(`${KV_URL}/get/luan_invoice_counter`, { headers: { Authorization: `Bearer ${KV_TOKEN}` } })
@@ -28,78 +27,74 @@ export default async function handler(req, res) {
 
   let body = ''
   await new Promise(resolve => { req.on('data', c => body += c); req.on('end', resolve) })
-  const { invoiceNum, date, dueDate, description, amount, clientName, clientAddress, sendDraft } = JSON.parse(body || '{}')
+  const { invoiceNum, date, dueDate, description, amount, clientName, clientAddress, sendDraft, clientEmail, clientCC } = JSON.parse(body || '{}')
 
-  // Build invoice HTML matching the original format
-  const invoiceHTML = `
-<!DOCTYPE html>
+  const invoiceHTML = `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <style>
-  body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; color: #000; margin: 0; padding: 20px; }
-  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
-  .company-name { font-size: 24pt; font-weight: bold; color: #1F3864; }
-  .invoice-title { font-size: 28pt; font-weight: bold; color: #4472C4; text-align: right; }
-  .company-info { font-size: 10pt; color: #333; }
-  .invoice-meta { text-align: right; font-size: 10pt; }
-  .invoice-meta table { margin-left: auto; border-collapse: collapse; }
-  .invoice-meta td { padding: 2px 8px; }
-  .invoice-meta .label { text-align: right; }
-  .invoice-meta .value { background: #BDD7EE; font-weight: bold; min-width: 120px; text-align: center; padding: 3px 8px; }
-  .invoice-meta .due { background: #FF0000; color: white; font-weight: bold; }
-  .bill-to { margin: 20px 0; }
-  .bill-to-header { background: #1F3864; color: white; font-weight: bold; padding: 4px 8px; font-size: 11pt; display: inline-block; min-width: 300px; }
-  .bill-to-content { padding: 6px 8px; font-size: 10pt; }
-  .items-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-  .items-table th { background: #1F3864; color: white; padding: 6px 8px; text-align: left; font-size: 10pt; }
-  .items-table th.right { text-align: right; }
-  .items-table td { padding: 5px 8px; border-bottom: 1px solid #BDD7EE; font-size: 10pt; }
-  .items-table td.right { text-align: right; }
-  .items-table tr:nth-child(even) { background: #DEEAF1; }
-  .totals { float: right; width: 280px; margin-top: 10px; }
+  * { box-sizing: border-box; }
+  body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; color: #000; margin: 0; padding: 24px; background: #fff; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+  .header-left { display: flex; flex-direction: column; gap: 4px; }
+  .logo-row { display: flex; align-items: center; gap: 12px; }
+  .logo-img { width: 52px; height: 52px; object-fit: contain; }
+  .company-name { font-size: 22pt; font-weight: bold; color: #1F3864; line-height: 1; }
+  .company-contact { font-size: 9.5pt; color: #444; margin-top: 4px; }
+  .invoice-title { font-size: 30pt; font-weight: bold; color: #4472C4; text-align: right; line-height: 1; margin-bottom: 8px; }
+  .meta-table { margin-left: auto; border-collapse: collapse; }
+  .meta-table td { padding: 2px 6px; font-size: 10pt; }
+  .meta-table .lbl { text-align: right; color: #333; }
+  .meta-table .val { background: #BDD7EE; font-weight: bold; min-width: 130px; text-align: center; padding: 3px 8px; }
+  .meta-table .due { background: #C00000; color: white; font-weight: bold; }
+  .divider { border: none; border-top: 2px solid #4472C4; margin: 10px 0; }
+  .bill-to-header { background: #1F3864; color: white; font-weight: bold; padding: 4px 10px; font-size: 10.5pt; display: block; width: 320px; }
+  .bill-to-content { padding: 6px 10px; font-size: 10pt; line-height: 1.5; }
+  .items-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  .items-table th { background: #1F3864; color: white; padding: 6px 10px; text-align: left; font-size: 10pt; }
+  .items-table th.r { text-align: right; }
+  .items-table td { padding: 5px 10px; font-size: 10pt; border-bottom: 1px solid #DEEAF1; }
+  .items-table td.r { text-align: right; }
+  .items-table tr:nth-child(even) td { background: #EBF3F9; }
+  .totals { float: right; width: 260px; margin-top: 6px; }
   .totals table { width: 100%; border-collapse: collapse; }
   .totals td { padding: 3px 8px; font-size: 10pt; }
-  .totals .total-row { background: #1F3864; color: white; font-weight: bold; font-size: 12pt; }
-  .totals .total-row td { padding: 5px 8px; }
-  .comments { margin-top: 80px; clear: both; }
-  .comments-header { background: #1F3864; color: white; font-weight: bold; padding: 4px 8px; font-size: 10pt; display: inline-block; min-width: 300px; }
-  .comments-content { border: 1px solid #BDD7EE; padding: 8px; font-size: 10pt; line-height: 1.6; }
-  .footer { text-align: center; margin-top: 30px; font-size: 10pt; color: #333; }
-  .footer strong { font-style: italic; }
-  .logo-area { display: flex; align-items: center; gap: 12px; }
-  .logo-box { width: 50px; height: 50px; background: linear-gradient(135deg, #4472C4 50%, #ED7D31 50%); display: inline-block; }
-  .divider { border: none; border-top: 2px solid #4472C4; margin: 10px 0; }
+  .totals .total-row td { background: #1F3864; color: white; font-weight: bold; font-size: 12pt; padding: 5px 8px; }
+  .comments { margin-top: 70px; clear: both; }
+  .comments-header { background: #1F3864; color: white; font-weight: bold; padding: 4px 10px; font-size: 10pt; display: block; width: 320px; }
+  .comments-content { border: 1px solid #BDD7EE; padding: 8px 10px; font-size: 10pt; line-height: 1.7; }
+  .footer { text-align: center; margin-top: 24px; font-size: 10pt; color: #333; line-height: 1.6; }
+  .footer em { font-style: italic; font-weight: bold; }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <div class="logo-area">
-    <div class="logo-box"></div>
-    <div>
+  <div class="header-left">
+    <div class="logo-row">
+      <img src="https://luan-crm.vercel.app/logo.jpg" class="logo-img" alt="Luan Technology Logo" />
       <div class="company-name">LUAN TECHNOLOGY CORP.</div>
-      <div class="company-info">Phone: 954 736-6838</div>
-      <div class="company-info">Website: luantechnology.com</div>
+    </div>
+    <div class="company-contact">
+      Phone: 954 736-6838 &nbsp;|&nbsp; Website: luantechnology.com
     </div>
   </div>
-  <div>
+  <div style="text-align:right">
     <div class="invoice-title">INVOICE</div>
-    <div class="invoice-meta">
-      <table>
-        <tr><td class="label">DATE</td><td class="value">${date}</td></tr>
-        <tr><td class="label">INVOICE #</td><td class="value">${invoiceNum}</td></tr>
-        <tr><td class="label">CUSTOMER ID</td><td class="value">25</td></tr>
-        <tr><td class="label">DUE DATE</td><td class="value due">${dueDate}</td></tr>
-      </table>
-    </div>
+    <table class="meta-table">
+      <tr><td class="lbl">DATE</td><td class="val">${date}</td></tr>
+      <tr><td class="lbl">INVOICE #</td><td class="val">${invoiceNum}</td></tr>
+      <tr><td class="lbl">CUSTOMER ID</td><td class="val">25</td></tr>
+      <tr><td class="lbl">DUE DATE</td><td class="val due">${dueDate}</td></tr>
+    </table>
   </div>
 </div>
 
 <hr class="divider">
 
-<div class="bill-to">
-  <div class="bill-to-header">BILL TO</div>
+<div style="margin: 14px 0;">
+  <span class="bill-to-header">BILL TO</span>
   <div class="bill-to-content">
     <strong>${clientName}</strong><br>
     ${clientAddress.replace(/\n/g, '<br>')}
@@ -110,17 +105,19 @@ export default async function handler(req, res) {
   <thead>
     <tr>
       <th>DESCRIPTION</th>
-      <th class="right">TAXED AMOUNT</th>
-      <th class="right">AMOUNT</th>
+      <th class="r">TAXED AMOUNT</th>
+      <th class="r">AMOUNT</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <td>${description}</td>
-      <td class="right"></td>
-      <td class="right">${parseFloat(amount).toFixed(2)}</td>
+      <td class="r"></td>
+      <td class="r">${parseFloat(amount).toFixed(2)}</td>
     </tr>
-    ${Array(10).fill('<tr><td>&nbsp;</td><td></td><td></td></tr>').join('\n')}
+    <tr><td>&nbsp;</td><td></td><td></td></tr>
+    <tr><td>&nbsp;</td><td></td><td></td></tr>
+    <tr><td>&nbsp;</td><td></td><td></td></tr>
   </tbody>
 </table>
 
@@ -131,26 +128,26 @@ export default async function handler(req, res) {
     <tr><td>Tax rate</td><td style="text-align:right">7.000%</td></tr>
     <tr><td>Tax due</td><td style="text-align:right">-</td></tr>
     <tr><td>Other</td><td style="text-align:right"></td></tr>
-    <tr class="total-row"><td><strong>TOTAL</strong></td><td style="text-align:right"><strong>$ ${parseFloat(amount).toFixed(2)}</strong></td></tr>
+    <tr class="total-row"><td>TOTAL</td><td style="text-align:right">$ ${parseFloat(amount).toFixed(2)}</td></tr>
   </table>
 </div>
 
 <div class="comments">
-  <div class="comments-header">OTHER COMMENTS</div>
+  <span class="comments-header">OTHER COMMENTS</span>
   <div class="comments-content">
     Then Our bank details:<br>
     LUAN TECHNOLOGY CORP. - WELLS FARGO BANK<br>
     ACCOUNT NUMBER: 6335743370<br>
     ROUTING NUMBER: 121000248<br><br>
     Also you can send e-checks or checks by mail to:<br>
-    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1575 N Treasure Dr. #101 North Bay Village, FL 33141
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1575 N Treasure Dr. #101 North Bay Village, FL 33141
   </div>
 </div>
 
 <div class="footer">
   If you have any questions about this invoice, please contact<br>
   Alejandro Alvarado, alejandro@luantechnology.com, +1 (954) 7366838<br>
-  <strong>Thank You For Your Business!</strong>
+  <em>Thank You For Your Business!</em>
 </div>
 
 </body>
@@ -161,7 +158,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Get token
     const params = new URLSearchParams()
     params.append('grant_type', 'client_credentials')
     params.append('client_id', CLIENT_ID)
@@ -177,7 +173,9 @@ export default async function handler(req, res) {
     const token = tokenData.access_token
     const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
 
-    // Create draft in Outlook
+    const recipients = [{ emailAddress: { address: clientEmail } }]
+    const cc = clientCC ? [{ emailAddress: { address: clientCC } }] : []
+
     const draftRes = await fetch(
       `https://graph.microsoft.com/v1.0/users/${MAILBOX}/messages`,
       {
@@ -186,15 +184,15 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           subject: `Invoice #${invoiceNum} - Luan Technology Corp.`,
           body: { contentType: 'HTML', content: invoiceHTML },
-          toRecipients: [{ emailAddress: { address: 'ava.smith@pescatlantic.com' } }],
-          ccRecipients: [{ emailAddress: { address: 'Cesar@pescatlantic.com' } }],
+          toRecipients: recipients,
+          ccRecipients: cc,
         })
       }
     )
     const draft = await draftRes.json()
     if (!draftRes.ok) throw new Error(draft.error?.message || 'Failed to create draft')
 
-    // Update invoice counter in KV
+    // Update counter
     const nextNum = parseInt(invoiceNum) + 1
     await fetch(`${KV_URL}/set/luan_invoice_counter`, {
       method: 'POST',
@@ -203,7 +201,6 @@ export default async function handler(req, res) {
     })
 
     return res.status(200).json({ ok: true, draftId: draft.id, nextInvoiceNum: nextNum })
-
   } catch (err) {
     return res.status(500).json({ error: err.message })
   }

@@ -4,17 +4,22 @@ const CLIENTS = {
   pescatlantic: {
     name: 'PESCATLANTIC GROUP, LLC',
     address: '801 Brickell Ave 8th Floor\nMiami, FL 33131',
-    to: 'ava.smith@pescatlantic.com',
+    email: 'ava.smith@pescatlantic.com',
     cc: 'Cesar@pescatlantic.com',
   },
   vonoil: {
     name: 'VONOIL',
     address: 'OMC Chambers, Wickhams, CAY 1\nRoad Town, Tortola, British Virgin Islands',
-    to: 'operations@vonoil.com',
+    email: 'operations@vonoil.com',
     cc: 'cesar@vonoil.com',
   }
 }
 
+function nextMonthStr() {
+  const d = new Date()
+  d.setMonth(d.getMonth() + 1)
+  return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+}
 function todayStr() {
   return new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 }
@@ -23,17 +28,13 @@ function dueDateStr() {
   d.setDate(d.getDate() + 5)
   return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 }
-function monthStr() {
-  const d = new Date()
-  return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-}
 
 export default function Invoice() {
   const [invoiceNum, setInvoiceNum] = useState('')
   const [date, setDate] = useState(todayStr())
   const [dueDate, setDueDate] = useState(dueDateStr())
   const [client, setClient] = useState('pescatlantic')
-  const [description, setDescription] = useState(`IT Managed Services Monthly Fee for ${monthStr()}`)
+  const [description, setDescription] = useState(`IT Managed Services Monthly Fee for ${nextMonthStr()}`)
   const [amount, setAmount] = useState('440.00')
   const [sending, setSending] = useState(false)
   const [msg, setMsg] = useState(null)
@@ -52,16 +53,23 @@ export default function Invoice() {
     setTimeout(() => setMsg(null), 7000)
   }
 
-  async function previewInvoice() {
+  function getPayload(sendDraft) {
     const cl = CLIENTS[client]
+    return {
+      invoiceNum, date, dueDate, description, amount,
+      clientName: cl.name,
+      clientAddress: cl.address,
+      clientEmail: cl.email,
+      clientCC: cl.cc,
+      sendDraft,
+    }
+  }
+
+  async function previewInvoice() {
     const res = await fetch('/api/invoice', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        invoiceNum, date, dueDate, description, amount,
-        clientName: cl.name, clientAddress: cl.address,
-        sendDraft: false,
-      })
+      body: JSON.stringify(getPayload(false))
     })
     const data = await res.json()
     if (data.html) { setPreview(data.html); setShowPreview(true) }
@@ -70,20 +78,15 @@ export default function Invoice() {
   async function createDraft() {
     setSending(true)
     setMsg(null)
-    const cl = CLIENTS[client]
     try {
       const res = await fetch('/api/invoice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          invoiceNum, date, dueDate, description, amount,
-          clientName: cl.name, clientAddress: cl.address,
-          sendDraft: true,
-        })
+        body: JSON.stringify(getPayload(true))
       })
       const data = await res.json()
       if (!data.ok) throw new Error(data.error || 'Failed')
-      showMsg('success', `✓ Invoice draft created in Outlook. Next invoice will be #${data.nextInvoiceNum}.`)
+      showMsg('success', `✓ Draft created in Outlook. Next invoice will be #${data.nextInvoiceNum}.`)
       setInvoiceNum(String(data.nextInvoiceNum))
     } catch (err) {
       showMsg('error', `Error: ${err.message}`)
@@ -95,7 +98,6 @@ export default function Invoice() {
     <div>
       <div style={{ background: '#fff', border: '1px solid #E7E5E4', borderRadius: 12, padding: '20px', marginBottom: 16, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
         <div className="section-title" style={{ marginBottom: 16 }}>Invoice details</div>
-
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
           <div className="form-row">
             <label>Invoice #</label>
@@ -125,10 +127,9 @@ export default function Invoice() {
             <input value={amount} onChange={e => setAmount(e.target.value)} />
           </div>
         </div>
-
-        <div style={{ marginTop: 8, fontSize: 12, color: '#78716C' }}>
+        <div style={{ marginTop: 10, fontSize: 12, color: '#78716C' }}>
           <i className="ti ti-send" style={{ marginRight: 4 }} />
-          Draft will be sent to: <strong>{CLIENTS[client].to}</strong> · CC: <strong>{CLIENTS[client].cc}</strong>
+          To: <strong>{CLIENTS[client].email}</strong> · CC: <strong>{CLIENTS[client].cc}</strong>
         </div>
       </div>
 
@@ -164,11 +165,7 @@ export default function Invoice() {
               <i className="ti ti-x" />
             </button>
           </div>
-          <iframe
-            srcDoc={preview}
-            style={{ width: '100%', height: 700, border: 'none' }}
-            title="Invoice preview"
-          />
+          <iframe srcDoc={preview} style={{ width: '100%', height: 750, border: 'none' }} title="Invoice preview" />
         </div>
       )}
     </div>
