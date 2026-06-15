@@ -1,0 +1,12 @@
+{
+  "name": "luan-crm-sync",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node sync.js",
+    "sync-once": "node sync.js --once"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}
