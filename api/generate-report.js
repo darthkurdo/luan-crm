@@ -57,7 +57,7 @@ Return ONLY the bullet points, one per line, starting with •. No headers, no e
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.2, maxOutputTokens: 1500 }
+          generationConfig: { temperature: 0.2, maxOutputTokens: 3000 }
         })
       }
     )
