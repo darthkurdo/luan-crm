@@ -95,7 +95,7 @@ export default function Reports({ tickets }) {
   const von = filtered.filter(t => t.client === 'Vonoil').length
   const res = filtered.filter(t => t.status === 'resolved').length
 
-  function generateReport() {
+  async function generateReport() {
     const text = buildReportText(filtered, from, to)
     setReportText(text)
     setGenerated(true)
@@ -209,7 +209,7 @@ export default function Reports({ tickets }) {
       {/* Generate button */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
         <button className="btn btn-primary" onClick={generateReport} disabled={filtered.length === 0}>
-          <i className="ti ti-file-text" /> Generate report
+          <i className="ti ti-sparkles" /> Generate report with AI
         </button>
         {generated && (
           <button className="btn" onClick={createDraftInOutlook} disabled={sending}>
