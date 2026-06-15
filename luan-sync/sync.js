@@ -76,7 +76,7 @@ async function fetchMsgs(token, folder, since) {
   const { default: fetch } = await import('node-fetch')
   const fields = 'id,subject,from,toRecipients,receivedDateTime,bodyPreview,body,importance,isRead,conversationId'
   const url = `https://graph.microsoft.com/v1.0/users/${CONFIG.MAILBOX}/mailFolders/${folder}/messages`
-    + `?$top=200&$orderby=receivedDateTime desc&$select=${fields}`
+    + `?$top=500&$orderby=receivedDateTime desc&$select=${fields}`
     + `&$filter=receivedDateTime ge ${since.toISOString()}`
   const res = await fetch(url, { headers:{ Authorization:`Bearer ${token}` } })
   const data = await res.json()
