@@ -1,4 +1,3 @@
-// api/tickets.js — reads/writes tickets from Upstash KV
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, POST, OPTIONS')
@@ -18,11 +17,9 @@ export default async function handler(req, res) {
     const kvRes = await fetch(`${KV_URL}/get/luan_crm_db`, { headers })
     const kvData = await kvRes.json()
     if (!kvData.result) return { tickets: [], lastSync: null }
-    // Handle double-serialized JSON
     const raw = kvData.result
     try {
       const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
-      // If still a string (double serialized), parse again
       if (typeof parsed === 'string') return JSON.parse(parsed)
       return parsed
     } catch { return { tickets: [], lastSync: null } }
@@ -36,13 +33,11 @@ export default async function handler(req, res) {
     })
   }
 
-  // GET /api/tickets — return all tickets
   if (req.method === 'GET') {
     const db = await getDb()
     return res.status(200).json(db)
   }
 
-  // PUT /api/tickets/:id — update a ticket
   if (req.method === 'PUT') {
     const id = req.url.split('/').pop()
     let body = ''
