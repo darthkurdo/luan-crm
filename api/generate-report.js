@@ -47,7 +47,7 @@ STRICT RULES:
 TICKETS:
 ${ticketSummaries}
 
-Return ONLY the bullet points, one per line, starting with •. No headers, no extra text.`
+IMPORTANT: Generate exactly one bullet point per ticket. Do not group, skip or combine tickets. Return ONLY the bullet points, one per line, starting with •. No headers, no extra text.`
 
   try {
     const geminiRes = await fetch(
