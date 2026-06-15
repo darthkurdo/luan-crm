@@ -15,18 +15,22 @@ function getMonthLabel(dateStr) {
 function ticketsInRange(tickets, from, to) {
   const f = new Date(from + 'T00:00:00')
   const t = new Date(to + 'T23:59:59')
-  return tickets.filter(tk => {
-    const d = new Date(tk.createdAt || tk.created)
-    return d >= f && d <= t
-  })
+  return tickets
+    .filter(tk => {
+      const d = new Date(tk.createdAt || tk.created)
+      return d >= f && d <= t
+    })
+    .sort((a, b) => new Date(b.createdAt || b.created) - new Date(a.createdAt || a.created))
 }
 
 export default function Reports({ tickets }) {
   const now = new Date()
-  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+  const oneMonthAgo = new Date(now)
+  oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1)
+  const defaultFrom = oneMonthAgo.toISOString().split('T')[0]
   const today = now.toISOString().split('T')[0]
 
-  const [from, setFrom] = useState(firstOfMonth)
+  const [from, setFrom] = useState(defaultFrom)
   const [to, setTo] = useState(today)
   const [reportText, setReportText] = useState('')
   const [generating, setGenerating] = useState(false)
@@ -105,7 +109,6 @@ export default function Reports({ tickets }) {
 
   return (
     <div>
-      {/* Date range */}
       <div style={{ background: '#fff', border: '1px solid #E7E5E4', borderRadius: 12, padding: '16px 20px', marginBottom: 16, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
         <div className="section-title" style={{ marginBottom: 12 }}>Report date range</div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
@@ -122,13 +125,12 @@ export default function Reports({ tickets }) {
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <button className="filter-btn" onClick={setPrevMonth}>Previous month</button>
-          <button className="filter-btn" onClick={() => { setFrom(firstOfMonth); setTo(today); setGenerated(false) }}>This month</button>
+          <button className="filter-btn" onClick={() => { setFrom(new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]); setTo(today); setGenerated(false) }}>This month</button>
           <button className="filter-btn" onClick={() => setPreset(2)}>Last 2 months</button>
           <button className="filter-btn" onClick={() => setPreset(3)}>Last 3 months</button>
         </div>
       </div>
 
-      {/* Metrics */}
       <div className="metrics metrics-3" style={{ marginBottom: 16 }}>
         <div className="metric">
           <div className="metric-label">Tickets in range</div>
@@ -145,7 +147,6 @@ export default function Reports({ tickets }) {
         </div>
       </div>
 
-      {/* Ticket list */}
       {filtered.length > 0 && (
         <div style={{ background: '#fff', border: '1px solid #E7E5E4', borderRadius: 12, padding: '14px 18px', marginBottom: 16, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
           <div className="section-title" style={{ marginBottom: 10 }}>Tickets included ({filtered.length})</div>
@@ -163,7 +164,6 @@ export default function Reports({ tickets }) {
         </div>
       )}
 
-      {/* Action buttons */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'center' }}>
         <button className="btn btn-primary" onClick={generateReport} disabled={generating || filtered.length === 0}>
           {generating
@@ -195,7 +195,6 @@ export default function Reports({ tickets }) {
         </div>
       )}
 
-      {/* Report preview - editable */}
       {generated && (
         <div style={{ background: '#fff', border: '1px solid #E7E5E4', borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
           <div style={{ padding: '12px 18px', borderBottom: '1px solid #E7E5E4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
