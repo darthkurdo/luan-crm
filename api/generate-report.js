@@ -15,16 +15,17 @@ export default async function handler(req, res) {
 
   if (!tickets || !tickets.length) return res.status(400).json({ error: 'No tickets provided' })
 
-  // Build ticket summaries for the prompt
   const ticketSummaries = tickets.map(t => {
     const clientMsgs = (t.messages || []).filter(m => !m.isMine)
     const myMsgs = (t.messages || []).filter(m => m.isMine)
     const firstClient = clientMsgs[0]
     const lastMine = myMsgs[myMsgs.length - 1]
-    return `TICKET ${t.id}: "${t.subject}"
-From: ${t.email} (${t.client})
-Request: ${firstClient?.body?.slice(0, 300) || firstClient?.preview?.slice(0, 300) || 'No description'}
-My response: ${lastMine?.body?.slice(0, 300) || lastMine?.preview?.slice(0, 300) || 'No response yet'}
+    const requesterName = firstClient?.fromName || t.email
+    return `TICKET ${t.id}:
+Subject: "${t.subject}"
+Requester full name: ${requesterName}
+Their request: ${firstClient?.body?.slice(0, 400) || firstClient?.preview?.slice(0, 400) || 'No message'}
+My response/action: ${lastMine?.body?.slice(0, 400) || lastMine?.preview?.slice(0, 400) || 'No response yet'}
 Status: ${t.status}`
   }).join('\n\n---\n\n')
 
@@ -32,27 +33,31 @@ Status: ${t.status}`
   const toLabel = new Date(to + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
   const monthLabel = new Date(from + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
-  const prompt = `You are Alejandro Alvarado, IT Consultant at Luan Technology Corp. Generate a professional IT activity report for the period ${fromLabel} through ${toLabel}.
+  const prompt = `You are Alejandro Alvarado, IT Consultant at Luan Technology Corp. Generate bullet points for an IT activity report.
 
-Based on these support tickets, write ONLY the "Client Requests and Actions" bullet points section. Each bullet should be:
-• [Short issue title] – [Who requested it] reported/requested [brief what they needed]. [What action was taken or response provided].
-
-Keep each bullet to 1-2 sentences max. Be professional and concise. Write in English.
+STRICT RULES:
+1. Always use the requester's FULL NAME (first and last name) — never say "Pescatlantic" or "Vonoil"
+2. Issue title: 2-4 words max, capitalized
+3. Description: 1 short sentence — who reported what, no details
+4. Action taken: 1 short sentence — what was specifically done to resolve it, be concrete (e.g. "Mailbox archive policy reviewed and confirmed no quota issue", "Email signature updated in M365 admin center", "Security analysis performed and phishing indicators blocked")
+5. Format exactly: • [Issue Title] – [Full Name] reported [brief what]. [Concrete action taken and resolved].
+6. Keep each bullet to max 2 lines
+7. Write in English
 
 TICKETS:
 ${ticketSummaries}
 
-Return ONLY the bullet points, one per line, starting with •. No headers, no other text.`
+Return ONLY the bullet points, one per line, starting with •. No headers, no extra text.`
 
   try {
     const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.3, maxOutputTokens: 1500 }
+          generationConfig: { temperature: 0.2, maxOutputTokens: 1500 }
         })
       }
     )
@@ -62,7 +67,6 @@ Return ONLY the bullet points, one per line, starting with •. No headers, no o
 
     const bullets = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || ''
 
-    // Build full report
     const report = `Subject: Reporte de Actividades - ${monthLabel}
 
 Hello Cesar,
