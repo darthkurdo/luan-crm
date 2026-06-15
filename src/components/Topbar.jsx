@@ -1,6 +1,6 @@
 import React from 'react'
 
-const TITLES = { dashboard: 'Dashboard', tickets: 'Tickets', clients: 'Clients', reports: 'Reports', settings: 'Settings' }
+const TITLES = { dashboard: 'Dashboard', tickets: 'Tickets', clients: 'Clients', reports: 'Reports', invoice: 'Invoice', settings: 'Settings' }
 
 export default function Topbar({ view, syncing, syncMsg, onSync, onNewTicket, lastSync }) {
   return (
