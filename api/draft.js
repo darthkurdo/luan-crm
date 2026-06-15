@@ -1,4 +1,4 @@
-// api/draft.js — Creates a draft reply in Outlook via Microsoft Graph
+// api/draft.js — Creates a draft in Outlook via Microsoft Graph (HTML format)
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
@@ -6,16 +6,29 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const TENANT_ID    = process.env.AZURE_TENANT_ID
-  const CLIENT_ID    = process.env.AZURE_CLIENT_ID
+  const TENANT_ID     = process.env.AZURE_TENANT_ID
+  const CLIENT_ID     = process.env.AZURE_CLIENT_ID
   const CLIENT_SECRET = process.env.AZURE_CLIENT_SECRET
-  const MAILBOX      = process.env.MAILBOX || 'alejandro@luantechnology.com'
+  const MAILBOX       = process.env.MAILBOX || 'alejandro@luantechnology.com'
 
   let body = ''
   await new Promise(resolve => { req.on('data', c => body += c); req.on('end', resolve) })
-  const { to, subject, content, conversationId, replyToMessageId } = JSON.parse(body || '{}')
+  const { to, subject, content, replyToMessageId } = JSON.parse(body || '{}')
 
   if (!to || !content) return res.status(400).json({ error: 'Missing to or content' })
+
+  // Convert plain text to clean HTML
+  const htmlContent = content
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .split('\n')
+    .map(line => {
+      if (line.trim() === '') return '<br>'
+      if (line.startsWith('•')) return `<p style="margin:4px 0">${line}</p>`
+      return `<p style="margin:4px 0">${line}</p>`
+    })
+    .join('\n')
 
   try {
     // Get token
@@ -37,7 +50,7 @@ export default async function handler(req, res) {
     let draftRes
 
     if (replyToMessageId) {
-      // Create a reply draft to the original message thread
+      // Create a reply draft — Outlook will append signature automatically
       draftRes = await fetch(
         `https://graph.microsoft.com/v1.0/users/${MAILBOX}/messages/${replyToMessageId}/createReply`,
         {
@@ -45,21 +58,21 @@ export default async function handler(req, res) {
           headers,
           body: JSON.stringify({
             message: {
-              body: { contentType: 'Text', content },
+              body: { contentType: 'HTML', content: htmlContent },
             }
           })
         }
       )
     } else {
-      // Create a new draft message
+      // Create new draft — request signature from Outlook
       draftRes = await fetch(
         `https://graph.microsoft.com/v1.0/users/${MAILBOX}/messages`,
         {
           method: 'POST',
           headers,
           body: JSON.stringify({
-            subject: subject || 'Re: Support',
-            body: { contentType: 'Text', content },
+            subject,
+            body: { contentType: 'HTML', content: htmlContent },
             toRecipients: [{ emailAddress: { address: to } }],
           })
         }
