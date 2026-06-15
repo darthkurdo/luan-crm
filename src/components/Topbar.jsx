@@ -2,15 +2,14 @@ import React from 'react'
 
 const TITLES = { dashboard: 'Dashboard', tickets: 'Tickets', clients: 'Clients', reports: 'Reports', settings: 'Settings' }
 
-export default function Topbar({ view, syncing, syncMsg, onSync, onNewTicket, localMode }) {
+export default function Topbar({ view, syncing, syncMsg, onSync, onNewTicket, lastSync }) {
   return (
     <div className="topbar">
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <span className="topbar-title">{TITLES[view] || 'Dashboard'}</span>
-        {localMode && (
-          <span style={{ fontSize: 11, background: '#D1FAE5', color: '#065F46', padding: '2px 8px', borderRadius: 20, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />
-            Local agent
+        {lastSync && (
+          <span style={{ fontSize: 11, color: '#A8A29E' }}>
+            Last sync: {new Date(lastSync).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
           </span>
         )}
       </div>
@@ -23,7 +22,7 @@ export default function Topbar({ view, syncing, syncMsg, onSync, onNewTicket, lo
         )}
         <button className="btn" onClick={onSync} disabled={syncing}>
           <i className={`ti ti-refresh${syncing ? ' spin' : ''}`} />
-          {syncing ? 'Syncing...' : localMode ? 'Sync (local)' : 'Sync inbox'}
+          {syncing ? 'Loading...' : 'Sync inbox'}
         </button>
         <button className="btn btn-primary" onClick={onNewTicket}>
           <i className="ti ti-plus" /> New ticket

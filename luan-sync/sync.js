@@ -9,6 +9,8 @@ const CONFIG = {
   MAILBOX:       'alejandro@luantechnology.com',
   DOMAINS:       ['pescatlantic.com', 'vonoil.com'],
   DB_DIR:        'C:\\temp\\luan-crm',
+  KV_URL:        'https://fitting-grouper-148726.upstash.io',
+  KV_TOKEN:      'gQAAAAAAAkT2AAIgcDExYmNlYTA3Nzc0MDA0YjRmOGQxZmFhNTMxNTUzMjU2NA',
   PORT:          3001,
   SYNC_INTERVAL: 5 * 60 * 1000,
   DAYS_BACK:     90,
@@ -20,29 +22,25 @@ const log = (msg) => console.log(`[${new Date().toLocaleTimeString()}] ${msg}`)
 function ensureDir() {
   if (!fs.existsSync(CONFIG.DB_DIR)) fs.mkdirSync(CONFIG.DB_DIR, { recursive: true })
 }
-
 function loadDb() {
   try { if (fs.existsSync(DB_PATH)) return JSON.parse(fs.readFileSync(DB_PATH, 'utf8')) } catch {}
   return { tickets: [], lastSync: null }
 }
-
 function saveDb(db) {
   ensureDir()
   db.lastSync = new Date().toISOString()
   fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2), 'utf8')
 }
-
 function cleanBody(raw, isHtml) {
   let t = raw || ''
   if (isHtml) {
-    t = t.replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<blockquote[\s\S]*?<\/blockquote>/gi, '')
-    t = t.replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n').replace(/<\/div>/gi, '\n').replace(/<[^>]+>/g, '')
+    t = t.replace(/<style[\s\S]*?<\/style>/gi,'').replace(/<blockquote[\s\S]*?<\/blockquote>/gi,'')
+    t = t.replace(/<br\s*\/?>/gi,'\n').replace(/<\/p>/gi,'\n').replace(/<\/div>/gi,'\n').replace(/<[^>]+>/g,'')
     t = t.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ').replace(/&quot;/g,'"')
   }
   t = t.replace(/_{3,}[\s\S]*/g,'').replace(/From:.*\n(Sent|Date):[\s\S]*/gi,'').replace(/On .+wrote:[\s\S]*/gi,'')
   return t.replace(/\r\n/g,'\n').replace(/\r/g,'\n').replace(/\n{3,}/g,'\n\n').trim()
 }
-
 function clientFromEmail(email) {
   const e = (email||'').toLowerCase()
   if (e.includes('pescatlantic')) return 'Pescatlantic'
@@ -50,12 +48,22 @@ function clientFromEmail(email) {
   return email.split('@')[1] || 'Unknown'
 }
 
+async function kvSet(value) {
+  const { default: fetch } = await import('node-fetch')
+  const res = await fetch(`${CONFIG.KV_URL}/set/luan_crm_db`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${CONFIG.KV_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(value),
+  })
+  return res.ok
+}
+
 async function getToken() {
   const { default: fetch } = await import('node-fetch')
   const params = new URLSearchParams()
   params.append('grant_type','client_credentials')
-  params.append('client_id', CONFIG.CLIENT_ID)
-  params.append('client_secret', CONFIG.CLIENT_SECRET)
+  params.append('client_id',CONFIG.CLIENT_ID)
+  params.append('client_secret',CONFIG.CLIENT_SECRET)
   params.append('scope','https://graph.microsoft.com/.default')
   const res = await fetch(`https://login.microsoftonline.com/${CONFIG.TENANT_ID}/oauth2/v2.0/token`,
     { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:params.toString() })
@@ -143,7 +151,9 @@ async function sync() {
     db.tickets.sort((a,b) => new Date(b.latestDate||b.createdAt) - new Date(a.latestDate||a.createdAt))
     saveDb(db)
     log(`Done. New: ${newCount}, Updated: ${updatedCount}, Total: ${db.tickets.length}`)
-    log(`Saved to: ${DB_PATH}`)
+    log('Pushing to Upstash KV...')
+    const pushed = await kvSet(JSON.stringify({ tickets: db.tickets, lastSync: db.lastSync }))
+    log(pushed ? 'KV updated OK' : 'KV push failed')
   } catch(err) { log(`Error: ${err.message}`) }
 }
 
@@ -154,7 +164,6 @@ function startServer() {
     res.setHeader('Content-Type','application/json')
     if (req.method==='OPTIONS') { res.writeHead(200); res.end(); return }
     const url = new URL(req.url, `http://localhost:${CONFIG.PORT}`)
-
     if (req.method==='GET' && url.pathname==='/api/tickets') {
       const db = loadDb()
       res.writeHead(200); res.end(JSON.stringify({ tickets: db.tickets, lastSync: db.lastSync })); return
@@ -167,40 +176,29 @@ function startServer() {
       const id = url.pathname.split('/').pop()
       let body = ''
       req.on('data', c => body+=c)
-      req.on('end', () => {
+      req.on('end', async () => {
         try {
           const changes = JSON.parse(body)
           const db = loadDb()
           const idx = db.tickets.findIndex(t => t.id===id)
-          if (idx>=0) { db.tickets[idx]={...db.tickets[idx],...changes,updatedAt:new Date().toISOString()}; saveDb(db); res.writeHead(200); res.end(JSON.stringify({ok:true})) }
-          else { res.writeHead(404); res.end(JSON.stringify({error:'Not found'})) }
+          if (idx>=0) {
+            db.tickets[idx]={...db.tickets[idx],...changes,updatedAt:new Date().toISOString()}
+            saveDb(db)
+            await kvSet(JSON.stringify({ tickets: db.tickets, lastSync: db.lastSync }))
+            res.writeHead(200); res.end(JSON.stringify({ok:true}))
+          } else { res.writeHead(404); res.end(JSON.stringify({error:'Not found'})) }
         } catch(e) { res.writeHead(400); res.end(JSON.stringify({error:e.message})) }
       }); return
     }
-    if (req.method==='GET' && url.pathname.startsWith('/api/reports/')) {
-      const month = url.pathname.split('/').pop()
-      const [year,mon] = month.split('-').map(Number)
-      const db = loadDb()
-      const mt = db.tickets.filter(t => { const d=new Date(t.createdAt||t.created); return d.getFullYear()===year&&(d.getMonth()+1)===mon })
-      res.writeHead(200); res.end(JSON.stringify({
-        month, total:mt.length,
-        open:mt.filter(t=>t.status==='open').length,
-        inProgress:mt.filter(t=>t.status==='in_progress').length,
-        resolved:mt.filter(t=>t.status==='resolved').length,
-        pescatlantic:mt.filter(t=>t.client==='Pescatlantic').length,
-        vonoil:mt.filter(t=>t.client==='Vonoil').length,
-        tickets:mt,
-      })); return
-    }
     res.writeHead(404); res.end(JSON.stringify({error:'Not found'}))
   })
-  server.listen(CONFIG.PORT, () => log(`API running at http://localhost:${CONFIG.PORT}`))
+  server.listen(CONFIG.PORT, () => log(`Local API at http://localhost:${CONFIG.PORT}`))
 }
 
-const isOnce = process.argv.includes('--once')
 log('=== Luan Technology CRM Sync Agent ===')
 log(`Mailbox: ${CONFIG.MAILBOX} | Domains: ${CONFIG.DOMAINS.join(', ')} | Last ${CONFIG.DAYS_BACK} days`)
-if (!isOnce) startServer()
+startServer()
 sync().then(() => {
-  if (!isOnce) { log(`Auto-sync every ${CONFIG.SYNC_INTERVAL/60000} min. Ctrl+C to stop.`); setInterval(sync, CONFIG.SYNC_INTERVAL) }
+  log(`Auto-sync every ${CONFIG.SYNC_INTERVAL/60000} min. Ctrl+C to stop.`)
+  setInterval(sync, CONFIG.SYNC_INTERVAL)
 }).catch(e => log(`Fatal: ${e.message}`))
