@@ -168,23 +168,16 @@ export default function Invoice() {
       }
       const cl=CLIENTS[client]
       const html=buildInvoiceHTML({invoiceNum,date,dueDate,description,amount,clientName:cl.name,clientAddress:cl.address},logoDataUrl)
-      const el=document.createElement('div')
-      const bodyMatch=html.match(/<body[^>]*>([\s\S]*)<\/body>/i)
-      el.innerHTML=bodyMatch?bodyMatch[1]:html
-      el.style.width='900px'
-      el.style.background='#fff'
-      el.style.position='absolute'
-      el.style.left='-9999px'
-      el.style.top='0'
-      document.body.appendChild(el)
-      await window.html2pdf().set({
-        margin:[0.4,0.4,0.4,0.4],
-        filename:`Invoice-${invoiceNum}.pdf`,
-        image:{type:'jpeg',quality:1.0},
-        html2canvas:{scale:3,useCORS:true,logging:false,backgroundColor:'#ffffff',windowWidth:900},
-        jsPDF:{unit:'in',format:'letter',orientation:'portrait'}
-      }).from(el).save()
-      document.body.removeChild(el)
+      // Open invoice in a new window and print to PDF
+      const win = window.open('', '_blank')
+      win.document.write(html)
+      win.document.close()
+      // Wait for content to load then trigger print
+      await new Promise(resolve => setTimeout(resolve, 800))
+      win.focus()
+      win.print()
+      await new Promise(resolve => setTimeout(resolve, 500))
+      win.close()
       showMsg('success','✓ PDF downloaded.')
     } catch(err){showMsg('error',`PDF error: ${err.message}`)}
     setDownloading(false)
