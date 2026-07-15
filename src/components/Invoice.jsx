@@ -168,16 +168,23 @@ export default function Invoice() {
       }
       const cl=CLIENTS[client]
       const html=buildInvoiceHTML({invoiceNum,date,dueDate,description,amount,clientName:cl.name,clientAddress:cl.address},logoDataUrl)
-      // Open invoice in a new window and print to PDF
-      const win = window.open('', '_blank')
-      win.document.write(html)
-      win.document.close()
-      // Wait for content to load then trigger print
-      await new Promise(resolve => setTimeout(resolve, 800))
-      win.focus()
-      win.print()
-      await new Promise(resolve => setTimeout(resolve, 500))
-      win.close()
+      // Use hidden iframe to print
+      const iframe = document.createElement('iframe')
+      iframe.style.position = 'fixed'
+      iframe.style.right = '0'
+      iframe.style.bottom = '0'
+      iframe.style.width = '0'
+      iframe.style.height = '0'
+      iframe.style.border = 'none'
+      document.body.appendChild(iframe)
+      iframe.contentDocument.open()
+      iframe.contentDocument.write(html)
+      iframe.contentDocument.close()
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      iframe.contentWindow.focus()
+      iframe.contentWindow.print()
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      document.body.removeChild(iframe)
       showMsg('success','✓ PDF downloaded.')
     } catch(err){showMsg('error',`PDF error: ${err.message}`)}
     setDownloading(false)
