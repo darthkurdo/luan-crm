@@ -165,19 +165,22 @@ export default function Invoice() {
       }
       const cl = CLIENTS[client]
       const html = buildInvoiceHTML({invoiceNum,date,dueDate,description,amount,clientName:cl.name,clientAddress:cl.address}, logoDataUrl)
-      const container = document.createElement('div')
-      container.innerHTML = html
-      container.style.position = 'absolute'
-      container.style.left = '-9999px'
-      document.body.appendChild(container)
+      const el = document.createElement('div')
+      // Extract just the body content from the full HTML
+      const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i)
+      el.innerHTML = bodyMatch ? bodyMatch[1] : html
+      el.style.width = '816px'
+      el.style.padding = '0'
+      el.style.background = '#fff'
+      document.body.appendChild(el)
       await window.html2pdf().set({
         margin: [0.4, 0.4, 0.4, 0.4],
         filename: `Invoice-${invoiceNum}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
         jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-      }).from(container.querySelector('body')).save()
-      document.body.removeChild(container)
+      }).from(el).save()
+      document.body.removeChild(el)
       showMsg('success','✓ PDF downloaded.')
     } catch(err){showMsg('error',`PDF error: ${err.message}`)}
     setDownloading(false)
