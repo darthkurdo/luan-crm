@@ -11,97 +11,114 @@ function dueDateStr() { const d=new Date(); d.setDate(d.getDate()+5); return d.t
 
 function buildInvoiceHTML(data, logoDataUrl) {
   const { invoiceNum, date, dueDate, description, amount, clientName, clientAddress } = data
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
-*{box-sizing:border-box}body{font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#000;margin:0;padding:24px;background:#fff}
-.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
-.header-left{display:flex;flex-direction:column;gap:4px}
-.logo-row{display:flex;align-items:center;gap:12px}
-.logo-img{width:52px;height:52px;object-fit:contain}
-.company-name{font-size:22pt;font-weight:bold;color:#1F3864;line-height:1}
-.company-contact{font-size:9.5pt;color:#444;margin-top:4px}
-.invoice-title{font-size:30pt;font-weight:bold;color:#4472C4;text-align:right;line-height:1;margin-bottom:8px}
-.meta-table{margin-left:auto;border-collapse:collapse}
-.meta-table td{padding:2px 6px;font-size:10pt}
-.meta-table .lbl{text-align:right;color:#333}
-.meta-table .val{background:#BDD7EE;font-weight:bold;min-width:130px;text-align:center;padding:3px 8px}
-.meta-table .due{background:#C00000;color:white;font-weight:bold}
-.divider{border:none;border-top:2px solid #4472C4;margin:10px 0}
-.bill-to-header{background:#1F3864;color:white;font-weight:bold;padding:4px 10px;font-size:10.5pt;display:block;width:320px}
-.bill-to-content{padding:6px 10px;font-size:10pt;line-height:1.5}
-.items-table{width:100%;border-collapse:collapse;margin:16px 0}
-.items-table th{background:#1F3864;color:white;padding:6px 10px;text-align:left;font-size:10pt}
-.items-table th.r{text-align:right}
-.items-table td{padding:5px 10px;font-size:10pt;border-bottom:1px solid #DEEAF1}
-.items-table td.r{text-align:right}
-.items-table tr:nth-child(even) td{background:#EBF3F9}
-.totals{float:right;width:260px;margin-top:6px}
-.totals table{width:100%;border-collapse:collapse}
-.totals td{padding:3px 8px;font-size:10pt}
-.totals .total-row td{background:#1F3864;color:white;font-weight:bold;font-size:12pt;padding:5px 8px}
-.comments{margin-top:70px;clear:both}
-.comments-header{background:#1F3864;color:white;font-weight:bold;padding:4px 10px;font-size:10pt;display:block;width:320px}
-.comments-content{border:1px solid #BDD7EE;padding:8px 10px;font-size:10pt;line-height:1.7}
-.footer{text-align:center;margin-top:24px;font-size:10pt;color:#333;line-height:1.6}
-.footer em{font-style:italic;font-weight:bold}
+  const amt = parseFloat(amount).toFixed(2)
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+body { font-family: Arial, sans-serif; font-size: 11pt; color: #000; margin: 0; padding: 20px; background: #fff; }
+table { border-collapse: collapse; }
+.header-table { width: 100%; margin-bottom: 10px; }
+.company-name { font-size: 20pt; font-weight: bold; color: #1F3864; line-height: 1.1; }
+.company-sub { font-size: 9pt; color: #444; margin-top: 4px; }
+.invoice-word { font-size: 28pt; font-weight: bold; color: #4472C4; text-align: right; }
+.meta-label { text-align: right; font-size: 10pt; padding: 2px 4px; }
+.meta-val { background: #BDD7EE; font-weight: bold; font-size: 10pt; text-align: center; padding: 3px 10px; min-width: 120px; }
+.meta-due { background: #C00000; color: white; font-weight: bold; font-size: 10pt; text-align: center; padding: 3px 10px; }
+.divider { border: none; border-top: 2px solid #4472C4; margin: 8px 0; }
+.section-hdr { background: #1F3864; color: white; font-weight: bold; font-size: 10pt; padding: 4px 8px; }
+.items-hdr { background: #1F3864; color: white; font-weight: bold; font-size: 10pt; padding: 6px 8px; }
+.item-row td { padding: 5px 8px; font-size: 10pt; border-bottom: 1px solid #DEEAF1; }
+.item-even td { background: #EBF3F9; }
+.total-label { font-size: 10pt; padding: 3px 8px; text-align: right; }
+.total-val { font-size: 10pt; padding: 3px 8px; text-align: right; }
+.grand-total td { background: #1F3864; color: white; font-weight: bold; font-size: 11pt; padding: 5px 8px; }
+.footer { text-align: center; font-size: 10pt; color: #333; margin-top: 20px; line-height: 1.7; }
 </style></head><body>
-<div class="header">
-  <div class="header-left">
-    <div class="logo-row">
-      ${logoDataUrl ? `<img src="${logoDataUrl}" class="logo-img" alt="Logo"/>` : ''}
-      <div class="company-name">LUAN TECHNOLOGY CORP.</div>
-    </div>
-    <div class="company-contact">Phone: 954 736-6838 &nbsp;|&nbsp; Website: luantechnology.com</div>
-  </div>
-  <div style="text-align:right">
-    <div class="invoice-title">INVOICE</div>
-    <table class="meta-table">
-      <tr><td class="lbl">DATE</td><td class="val">${date}</td></tr>
-      <tr><td class="lbl">INVOICE #</td><td class="val">${invoiceNum}</td></tr>
-      <tr><td class="lbl">CUSTOMER ID</td><td class="val">25</td></tr>
-      <tr><td class="lbl">DUE DATE</td><td class="val due">${dueDate}</td></tr>
+
+<!-- HEADER -->
+<table class="header-table">
+<tr>
+  <td style="vertical-align:top; width:60%">
+    <table>
+      <tr>
+        <td style="vertical-align:middle; padding-right:10px">
+          ${logoDataUrl ? `<img src="${logoDataUrl}" style="width:50px;height:50px;object-fit:contain" alt="Logo"/>` : ''}
+        </td>
+        <td style="vertical-align:middle">
+          <div class="company-name">LUAN TECHNOLOGY CORP.</div>
+          <div class="company-sub">Phone: 954 736-6838 &nbsp;|&nbsp; Website: luantechnology.com</div>
+        </td>
+      </tr>
     </table>
-  </div>
-</div>
-<hr class="divider">
-<div style="margin:14px 0">
-  <span class="bill-to-header">BILL TO</span>
-  <div class="bill-to-content"><strong>${clientName}</strong><br>${clientAddress.replace(/\n/g,'<br>')}</div>
-</div>
-<table class="items-table">
-  <thead><tr><th>DESCRIPTION</th><th class="r">TAXED AMOUNT</th><th class="r">AMOUNT</th></tr></thead>
-  <tbody>
-    <tr><td>${description}</td><td class="r"></td><td class="r">${parseFloat(amount).toFixed(2)}</td></tr>
-    <tr><td>&nbsp;</td><td></td><td></td></tr>
-    <tr><td>&nbsp;</td><td></td><td></td></tr>
-    <tr><td>&nbsp;</td><td></td><td></td></tr>
-  </tbody>
+  </td>
+  <td style="vertical-align:top; text-align:right; width:40%">
+    <div class="invoice-word">INVOICE</div>
+    <table style="margin-left:auto">
+      <tr><td class="meta-label">DATE</td><td class="meta-val">${date}</td></tr>
+      <tr><td class="meta-label">INVOICE #</td><td class="meta-val">${invoiceNum}</td></tr>
+      <tr><td class="meta-label">CUSTOMER ID</td><td class="meta-val">25</td></tr>
+      <tr><td class="meta-label">DUE DATE</td><td class="meta-due">${dueDate}</td></tr>
+    </table>
+  </td>
+</tr>
 </table>
-<div class="totals">
-  <table>
-    <tr><td>Subtotal</td><td style="text-align:right">${parseFloat(amount).toFixed(2)}</td></tr>
-    <tr><td>Taxable</td><td style="text-align:right">-</td></tr>
-    <tr><td>Tax rate</td><td style="text-align:right">7.000%</td></tr>
-    <tr><td>Tax due</td><td style="text-align:right">-</td></tr>
-    <tr><td>Other</td><td style="text-align:right"></td></tr>
-    <tr class="total-row"><td>TOTAL</td><td style="text-align:right">$ ${parseFloat(amount).toFixed(2)}</td></tr>
-  </table>
-</div>
-<div class="comments">
-  <span class="comments-header">OTHER COMMENTS</span>
-  <div class="comments-content">
-    Then Our bank details:<br>
-    LUAN TECHNOLOGY CORP. - WELLS FARGO BANK<br>
-    ACCOUNT NUMBER: 6335743370<br>
-    ROUTING NUMBER: 121000248<br><br>
-    Also you can send e-checks or checks by mail to:<br>
-    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1575 N Treasure Dr. #101 North Bay Village, FL 33141
-  </div>
-</div>
+
+<hr class="divider"/>
+
+<!-- BILL TO -->
+<table style="margin:10px 0">
+<tr><td class="section-hdr" style="width:300px">BILL TO</td></tr>
+<tr><td style="padding:6px 8px; font-size:10pt; line-height:1.6">
+  <strong>${clientName}</strong><br/>
+  ${clientAddress.replace(/\n/g,'<br/>')}
+</td></tr>
+</table>
+
+<!-- ITEMS -->
+<table style="width:100%; margin:14px 0">
+<thead>
+  <tr>
+    <th class="items-hdr" style="text-align:left; width:70%">DESCRIPTION</th>
+    <th class="items-hdr" style="text-align:right; width:15%">TAXED AMOUNT</th>
+    <th class="items-hdr" style="text-align:right; width:15%">AMOUNT</th>
+  </tr>
+</thead>
+<tbody>
+  <tr class="item-row"><td>${description}</td><td style="text-align:right"></td><td style="text-align:right">${amt}</td></tr>
+  <tr class="item-row item-even"><td>&nbsp;</td><td></td><td></td></tr>
+  <tr class="item-row"><td>&nbsp;</td><td></td><td></td></tr>
+  <tr class="item-row item-even"><td>&nbsp;</td><td></td><td></td></tr>
+</tbody>
+</table>
+
+<!-- TOTALS (right-aligned) -->
+<table style="margin-left:auto; min-width:260px; margin-bottom:10px">
+  <tr><td class="total-label">Subtotal</td><td class="total-val">${amt}</td></tr>
+  <tr><td class="total-label">Taxable</td><td class="total-val">-</td></tr>
+  <tr><td class="total-label">Tax rate</td><td class="total-val">7.000%</td></tr>
+  <tr><td class="total-label">Tax due</td><td class="total-val">-</td></tr>
+  <tr><td class="total-label">Other</td><td class="total-val"></td></tr>
+  <tr class="grand-total"><td style="padding:5px 8px">TOTAL</td><td style="padding:5px 8px; text-align:right">$ ${amt}</td></tr>
+</table>
+
+<!-- COMMENTS -->
+<table style="margin-top:30px; width:60%">
+<tr><td class="section-hdr">OTHER COMMENTS</td></tr>
+<tr><td style="border:1px solid #BDD7EE; padding:8px; font-size:10pt; line-height:1.8">
+  Then Our bank details:<br/>
+  LUAN TECHNOLOGY CORP. - WELLS FARGO BANK<br/>
+  ACCOUNT NUMBER: 6335743370<br/>
+  ROUTING NUMBER: 121000248<br/><br/>
+  Also you can send e-checks or checks by mail to:<br/>
+  &nbsp;&nbsp;&nbsp;&nbsp;1575 N Treasure Dr. #101 North Bay Village, FL 33141
+</td></tr>
+</table>
+
 <div class="footer">
-  If you have any questions about this invoice, please contact<br>
-  Alejandro Alvarado, alejandro@luantechnology.com, +1 (954) 7366838<br>
-  <em>Thank You For Your Business!</em>
+  If you have any questions about this invoice, please contact<br/>
+  Alejandro Alvarado, alejandro@luantechnology.com, +1 (954) 7366838<br/>
+  <em><strong>Thank You For Your Business!</strong></em>
 </div>
+
 </body></html>`
 }
 
@@ -121,7 +138,6 @@ export default function Invoice() {
 
   useEffect(() => {
     fetch('/api/invoice').then(r=>r.json()).then(d=>setInvoiceNum(String(d.counter+1))).catch(()=>setInvoiceNum('1113821'))
-    // Load logo as base64 from public folder
     fetch('/logo.jpg').then(r=>r.blob()).then(blob => {
       const reader = new FileReader()
       reader.onload = () => setLogoDataUrl(reader.result)
@@ -133,9 +149,9 @@ export default function Invoice() {
   function getPayload(sendDraft){ const cl=CLIENTS[client]; return {invoiceNum,date,dueDate,description,amount,clientName:cl.name,clientAddress:cl.address,clientEmail:cl.email,clientCC:cl.cc,sendDraft} }
 
   async function previewInvoice(){
-    const res=await fetch('/api/invoice',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(getPayload(false))})
-    const data=await res.json()
-    if(data.html){setPreview(data.html);setShowPreview(true)}
+    const cl=CLIENTS[client]
+    const html=buildInvoiceHTML({invoiceNum,date,dueDate,description,amount,clientName:cl.name,clientAddress:cl.address},logoDataUrl)
+    setPreview(html); setShowPreview(true)
   }
 
   async function createDraft(){
@@ -153,32 +169,28 @@ export default function Invoice() {
   async function downloadPdf(){
     setDownloading(true);setMsg(null)
     try {
-      // Dynamically load html2pdf from CDN
       if (!window.html2pdf) {
         await new Promise((resolve, reject) => {
-          const script = document.createElement('script')
-          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'
-          script.onload = resolve
-          script.onerror = reject
-          document.head.appendChild(script)
+          const s=document.createElement('script')
+          s.src='https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'
+          s.onload=resolve; s.onerror=reject
+          document.head.appendChild(s)
         })
       }
-      const cl = CLIENTS[client]
-      const html = buildInvoiceHTML({invoiceNum,date,dueDate,description,amount,clientName:cl.name,clientAddress:cl.address}, logoDataUrl)
-      const el = document.createElement('div')
-      // Extract just the body content from the full HTML
-      const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i)
-      el.innerHTML = bodyMatch ? bodyMatch[1] : html
-      el.style.width = '816px'
-      el.style.padding = '0'
-      el.style.background = '#fff'
+      const cl=CLIENTS[client]
+      const html=buildInvoiceHTML({invoiceNum,date,dueDate,description,amount,clientName:cl.name,clientAddress:cl.address},logoDataUrl)
+      const el=document.createElement('div')
+      const bodyMatch=html.match(/<body[^>]*>([\s\S]*)<\/body>/i)
+      el.innerHTML=bodyMatch?bodyMatch[1]:html
+      el.style.width='750px'
+      el.style.background='#fff'
       document.body.appendChild(el)
       await window.html2pdf().set({
-        margin: [0.4, 0.4, 0.4, 0.4],
-        filename: `Invoice-${invoiceNum}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
-        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+        margin:[0.5,0.5,0.5,0.5],
+        filename:`Invoice-${invoiceNum}.pdf`,
+        image:{type:'jpeg',quality:0.98},
+        html2canvas:{scale:2,useCORS:true,logging:false,backgroundColor:'#ffffff'},
+        jsPDF:{unit:'in',format:'letter',orientation:'portrait'}
       }).from(el).save()
       document.body.removeChild(el)
       showMsg('success','✓ PDF downloaded.')
@@ -210,7 +222,7 @@ export default function Invoice() {
           {sending?<><i className="ti ti-loader spin" /> Creating...</>:<><i className="ti ti-mail" /> Create draft in Outlook</>}
         </button>
         <button className="btn" onClick={downloadPdf} disabled={downloading||!invoiceNum} style={{borderColor:'#1E3A8A',color:'#1E3A8A'}}>
-          {downloading?<><i className="ti ti-loader spin" /> Generating PDF...</>:<><i className="ti ti-file-type-pdf" /> Download PDF</>}
+          {downloading?<><i className="ti ti-loader spin" /> Generating...</>:<><i className="ti ti-file-type-pdf" /> Download PDF</>}
         </button>
       </div>
 
