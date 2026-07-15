@@ -12,108 +12,97 @@ function dueDateStr() { const d=new Date(); d.setDate(d.getDate()+5); return d.t
 function buildInvoiceHTML(data, logoDataUrl) {
   const { invoiceNum, date, dueDate, description, amount, clientName, clientAddress } = data
   const amt = parseFloat(amount).toFixed(2)
+  const hdrStyle = 'background-color:#1F3864;color:#ffffff;font-weight:bold;font-size:10pt;padding:5px 8px;'
+  const valStyle = 'background-color:#BDD7EE;font-weight:bold;font-size:10pt;text-align:center;padding:3px 10px;min-width:130px;'
+  const dueStyle = 'background-color:#C00000;color:#ffffff;font-weight:bold;font-size:10pt;text-align:center;padding:3px 10px;'
+  const evenRow = 'background-color:#EBF3F9;'
   return `<!DOCTYPE html><html><head><meta charset="UTF-8">
 <style>
+* { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 body { font-family: Arial, sans-serif; font-size: 11pt; color: #000; margin: 0; padding: 20px; background: #fff; }
 table { border-collapse: collapse; }
-.header-table { width: 100%; margin-bottom: 10px; }
-.company-name { font-size: 20pt; font-weight: bold; color: #1F3864; line-height: 1.1; }
-.company-sub { font-size: 9pt; color: #444; margin-top: 4px; }
-.invoice-word { font-size: 28pt; font-weight: bold; color: #4472C4; text-align: right; }
-.meta-label { text-align: right; font-size: 10pt; padding: 2px 4px; }
-.meta-val { background: #BDD7EE; font-weight: bold; font-size: 10pt; text-align: center; padding: 3px 10px; min-width: 120px; }
-.meta-due { background: #C00000; color: white; font-weight: bold; font-size: 10pt; text-align: center; padding: 3px 10px; }
-.divider { border: none; border-top: 2px solid #4472C4; margin: 8px 0; }
-.section-hdr { background: #1F3864; color: white; font-weight: bold; font-size: 10pt; padding: 4px 8px; }
-.items-hdr { background: #1F3864; color: white; font-weight: bold; font-size: 10pt; padding: 6px 8px; }
-.item-row td { padding: 5px 8px; font-size: 10pt; border-bottom: 1px solid #DEEAF1; }
-.item-even td { background: #EBF3F9; }
-.total-label { font-size: 10pt; padding: 3px 8px; text-align: right; }
-.total-val { font-size: 10pt; padding: 3px 8px; text-align: right; }
-.grand-total td { background: #1F3864; color: white; font-weight: bold; font-size: 11pt; padding: 5px 8px; }
-.footer { text-align: center; font-size: 10pt; color: #333; margin-top: 20px; line-height: 1.7; }
 </style></head><body>
 
 <!-- HEADER -->
-<table class="header-table">
+<table style="width:100%; margin-bottom:10px;">
 <tr>
-  <td style="vertical-align:top; width:60%">
+  <td style="vertical-align:top; width:55%">
     <table>
       <tr>
         <td style="vertical-align:middle; padding-right:10px">
-          ${logoDataUrl ? `<img src="${logoDataUrl}" style="width:50px;height:50px;object-fit:contain" alt="Logo"/>` : ''}
+          ${logoDataUrl ? `<img src="${logoDataUrl}" style="width:52px;height:52px;object-fit:contain" alt="Logo"/>` : ''}
         </td>
         <td style="vertical-align:middle">
-          <div class="company-name">LUAN TECHNOLOGY CORP.</div>
-          <div class="company-sub">Phone: 954 736-6838 &nbsp;|&nbsp; Website: luantechnology.com</div>
+          <div style="font-size:18pt;font-weight:bold;color:#1F3864;line-height:1.1">LUAN TECHNOLOGY CORP.</div>
+          <div style="font-size:9pt;color:#444;margin-top:5px">Phone: 954 736-6838 &nbsp;|&nbsp; Website: luantechnology.com</div>
         </td>
       </tr>
     </table>
   </td>
-  <td style="vertical-align:top; text-align:right; width:40%">
-    <div class="invoice-word">INVOICE</div>
-    <table style="margin-left:auto">
-      <tr><td class="meta-label">DATE</td><td class="meta-val">${date}</td></tr>
-      <tr><td class="meta-label">INVOICE #</td><td class="meta-val">${invoiceNum}</td></tr>
-      <tr><td class="meta-label">CUSTOMER ID</td><td class="meta-val">25</td></tr>
-      <tr><td class="meta-label">DUE DATE</td><td class="meta-due">${dueDate}</td></tr>
+  <td style="vertical-align:top; text-align:right; width:45%">
+    <div style="font-size:26pt;font-weight:bold;color:#4472C4;margin-bottom:6px">INVOICE</div>
+    <table style="margin-left:auto; border-collapse:collapse">
+      <tr><td style="text-align:right;font-size:10pt;padding:2px 6px">DATE</td><td style="${valStyle}">${date}</td></tr>
+      <tr><td style="text-align:right;font-size:10pt;padding:2px 6px">INVOICE #</td><td style="${valStyle}">${invoiceNum}</td></tr>
+      <tr><td style="text-align:right;font-size:10pt;padding:2px 6px">CUSTOMER ID</td><td style="${valStyle}">25</td></tr>
+      <tr><td style="text-align:right;font-size:10pt;padding:2px 6px">DUE DATE</td><td style="${dueStyle}">${dueDate}</td></tr>
     </table>
   </td>
 </tr>
 </table>
 
-<hr class="divider"/>
+<hr style="border:none;border-top:2px solid #4472C4;margin:8px 0"/>
 
 <!-- BILL TO -->
-<table style="margin:10px 0">
-<tr><td class="section-hdr" style="width:300px">BILL TO</td></tr>
-<tr><td style="padding:6px 8px; font-size:10pt; line-height:1.6">
-  <strong>${clientName}</strong><br/>
-  ${clientAddress.replace(/\n/g,'<br/>')}
-</td></tr>
+<table style="margin:10px 0;border-collapse:collapse">
+  <tr><td style="${hdrStyle} width:300px">BILL TO</td></tr>
+  <tr><td style="padding:6px 8px;font-size:10pt;line-height:1.6">
+    <strong>${clientName}</strong><br/>
+    ${clientAddress.replace(/\n/g,'<br/>')}
+  </td></tr>
 </table>
 
-<!-- ITEMS -->
-<table style="width:100%; margin:14px 0">
-<thead>
-  <tr>
-    <th class="items-hdr" style="text-align:left; width:70%">DESCRIPTION</th>
-    <th class="items-hdr" style="text-align:right; width:15%">TAXED AMOUNT</th>
-    <th class="items-hdr" style="text-align:right; width:15%">AMOUNT</th>
-  </tr>
-</thead>
-<tbody>
-  <tr class="item-row"><td>${description}</td><td style="text-align:right"></td><td style="text-align:right">${amt}</td></tr>
-  <tr class="item-row item-even"><td>&nbsp;</td><td></td><td></td></tr>
-  <tr class="item-row"><td>&nbsp;</td><td></td><td></td></tr>
-  <tr class="item-row item-even"><td>&nbsp;</td><td></td><td></td></tr>
-</tbody>
+<!-- ITEMS TABLE -->
+<table style="width:100%;margin:14px 0;border-collapse:collapse">
+  <thead>
+    <tr>
+      <th style="${hdrStyle} text-align:left;width:68%">DESCRIPTION</th>
+      <th style="${hdrStyle} text-align:right;width:16%">TAXED AMOUNT</th>
+      <th style="${hdrStyle} text-align:right;width:16%">AMOUNT</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td style="padding:5px 8px;font-size:10pt;border-bottom:1px solid #DEEAF1">${description}</td><td style="padding:5px 8px;text-align:right;border-bottom:1px solid #DEEAF1"></td><td style="padding:5px 8px;text-align:right;border-bottom:1px solid #DEEAF1">${amt}</td></tr>
+    <tr><td style="padding:5px 8px;${evenRow}border-bottom:1px solid #DEEAF1">&nbsp;</td><td style="${evenRow}border-bottom:1px solid #DEEAF1"></td><td style="${evenRow}border-bottom:1px solid #DEEAF1"></td></tr>
+    <tr><td style="padding:5px 8px;border-bottom:1px solid #DEEAF1">&nbsp;</td><td style="border-bottom:1px solid #DEEAF1"></td><td style="border-bottom:1px solid #DEEAF1"></td></tr>
+    <tr><td style="padding:5px 8px;${evenRow}border-bottom:1px solid #DEEAF1">&nbsp;</td><td style="${evenRow}border-bottom:1px solid #DEEAF1"></td><td style="${evenRow}border-bottom:1px solid #DEEAF1"></td></tr>
+  </tbody>
 </table>
 
-<!-- TOTALS (right-aligned) -->
-<table style="margin-left:auto; min-width:260px; margin-bottom:10px">
-  <tr><td class="total-label">Subtotal</td><td class="total-val">${amt}</td></tr>
-  <tr><td class="total-label">Taxable</td><td class="total-val">-</td></tr>
-  <tr><td class="total-label">Tax rate</td><td class="total-val">7.000%</td></tr>
-  <tr><td class="total-label">Tax due</td><td class="total-val">-</td></tr>
-  <tr><td class="total-label">Other</td><td class="total-val"></td></tr>
-  <tr class="grand-total"><td style="padding:5px 8px">TOTAL</td><td style="padding:5px 8px; text-align:right">$ ${amt}</td></tr>
+<!-- TOTALS -->
+<table style="margin-left:auto;min-width:270px;border-collapse:collapse;margin-bottom:10px">
+  <tr><td style="font-size:10pt;padding:3px 8px;text-align:right">Subtotal</td><td style="font-size:10pt;padding:3px 8px;text-align:right">${amt}</td></tr>
+  <tr><td style="font-size:10pt;padding:3px 8px;text-align:right">Taxable</td><td style="font-size:10pt;padding:3px 8px;text-align:right">-</td></tr>
+  <tr><td style="font-size:10pt;padding:3px 8px;text-align:right">Tax rate</td><td style="font-size:10pt;padding:3px 8px;text-align:right">7.000%</td></tr>
+  <tr><td style="font-size:10pt;padding:3px 8px;text-align:right">Tax due</td><td style="font-size:10pt;padding:3px 8px;text-align:right">-</td></tr>
+  <tr><td style="font-size:10pt;padding:3px 8px;text-align:right">Other</td><td style="font-size:10pt;padding:3px 8px;text-align:right"></td></tr>
+  <tr><td style="background-color:#1F3864;color:#ffffff;font-weight:bold;font-size:11pt;padding:5px 8px;text-align:right">TOTAL</td><td style="background-color:#1F3864;color:#ffffff;font-weight:bold;font-size:11pt;padding:5px 8px;text-align:right">$ ${amt}</td></tr>
 </table>
 
 <!-- COMMENTS -->
-<table style="margin-top:30px; width:60%">
-<tr><td class="section-hdr">OTHER COMMENTS</td></tr>
-<tr><td style="border:1px solid #BDD7EE; padding:8px; font-size:10pt; line-height:1.8">
-  Then Our bank details:<br/>
-  LUAN TECHNOLOGY CORP. - WELLS FARGO BANK<br/>
-  ACCOUNT NUMBER: 6335743370<br/>
-  ROUTING NUMBER: 121000248<br/><br/>
-  Also you can send e-checks or checks by mail to:<br/>
-  &nbsp;&nbsp;&nbsp;&nbsp;1575 N Treasure Dr. #101 North Bay Village, FL 33141
-</td></tr>
+<table style="margin-top:30px;width:60%;border-collapse:collapse">
+  <tr><td style="${hdrStyle}">OTHER COMMENTS</td></tr>
+  <tr><td style="border:1px solid #BDD7EE;padding:8px;font-size:10pt;line-height:1.8">
+    Then Our bank details:<br/>
+    LUAN TECHNOLOGY CORP. - WELLS FARGO BANK<br/>
+    ACCOUNT NUMBER: 6335743370<br/>
+    ROUTING NUMBER: 121000248<br/><br/>
+    Also you can send e-checks or checks by mail to:<br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;1575 N Treasure Dr. #101 North Bay Village, FL 33141
+  </td></tr>
 </table>
 
-<div class="footer">
+<div style="text-align:center;font-size:10pt;color:#333;margin-top:24px;line-height:1.7">
   If you have any questions about this invoice, please contact<br/>
   Alejandro Alvarado, alejandro@luantechnology.com, +1 (954) 7366838<br/>
   <em><strong>Thank You For Your Business!</strong></em>
@@ -182,14 +171,17 @@ export default function Invoice() {
       const el=document.createElement('div')
       const bodyMatch=html.match(/<body[^>]*>([\s\S]*)<\/body>/i)
       el.innerHTML=bodyMatch?bodyMatch[1]:html
-      el.style.width='750px'
+      el.style.width='900px'
       el.style.background='#fff'
+      el.style.position='absolute'
+      el.style.left='-9999px'
+      el.style.top='0'
       document.body.appendChild(el)
       await window.html2pdf().set({
-        margin:[0.5,0.5,0.5,0.5],
+        margin:[0.4,0.4,0.4,0.4],
         filename:`Invoice-${invoiceNum}.pdf`,
-        image:{type:'jpeg',quality:0.98},
-        html2canvas:{scale:2,useCORS:true,logging:false,backgroundColor:'#ffffff'},
+        image:{type:'jpeg',quality:1.0},
+        html2canvas:{scale:3,useCORS:true,logging:false,backgroundColor:'#ffffff',windowWidth:900},
         jsPDF:{unit:'in',format:'letter',orientation:'portrait'}
       }).from(el).save()
       document.body.removeChild(el)
